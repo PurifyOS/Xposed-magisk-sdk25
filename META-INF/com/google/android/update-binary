@@ -75,6 +75,21 @@ wipe_twrp() {
     chmod 777 /cache/recovery/openrecoveryscript
   fi
   }
+android_version() {
+  case $1 in
+    15) echo '4.0 / SDK'$1;;
+    16) echo '4.1 / SDK'$1;;
+    17) echo '4.2 / SDK'$1;;
+    18) echo '4.3 / SDK'$1;;
+    19) echo '4.4 / SDK'$1;;
+    21) echo '5.0 / SDK'$1;;
+    22) echo '5.1 / SDK'$1;;
+    23) echo '6.0 / SDK'$1;;
+    24) echo '7.0 / SDK'$1;;
+    25) echo '7.1 / SDK'$1;;
+    *)  echo 'SDK'$1;;
+  esac
+}
 # Mount /data to access MAGISKBIN
 mount /data 2>/dev/null
 
@@ -153,13 +168,44 @@ ui_print "- Mounting $IMG to $MOUNTPATH"
 MAGISKLOOP=`$MAGISKBIN/magisk --mountimg $IMG $MOUNTPATH`
 is_mounted $MOUNTPATH || abort"! $IMG mount failed..."
 
+XVERSION=$(grep_prop version $INSTALLER/system/$ARCH/xposed.prop)
+XMINSDK=$(grep_prop minsdk $INSTALLER/system/$ARCH/xposed.prop)
+XMAXSDK=$(grep_prop maxsdk $INSTALLER/system/$ARCH/xposed.prop)
+APINAME=$(android_version $API)
+
+XEXPECTEDSDK=$(android_version $XMINSDK)
+if [ "$XMINSDK" != "$XMAXSDK" ]; then
+  XEXPECTEDSDK=$XEXPECTEDSDK' - '$(android_version $XMAXSDK)
+fi
+
+ui_print "- Xposed version: $XVERSION"
+ui_print "- Device platform: $ARCH"
+ui_print "- SDK device: $API"
+XVALID=
+if [ "$API" -ge "$XMINSDK" ]; then
+  if [ "$API" -le "$XMAXSDK" ]; then
+    XVALID=1
+  else
+    ui_print "! Wrong Android version: $APINAME"
+    ui_print "! This file is for: $XEXPECTEDSDK"
+  fi
+else
+  ui_print "! Wrong Android version: $APINAME"
+  ui_print "! This file is for: $XEXPECTEDSDK"
+fi
+
+if [ -z $XVALID ]; then
+  ui_print "! Please download the correct package"
+  ui_print "! for your Android version!"
+  exit 1
+fi
 # Create mod paths
 rm -rf $MODPATH 2>/dev/null
 mkdir -p $MODPATH
 
 # Copy files
 ui_print "- Copying files"
-mv $INSTALLER/system $MODPATH/system
+mv $INSTALLER/system/$ARCH $MODPATH/system
 
 # Handle replace folders
 for TARGET in $REPLACE; do

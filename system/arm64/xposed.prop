@@ -1,0 +1,4 @@
+version=87 (Xposed by PurifyOS)
+arch=arm64
+minsdk=25
+maxsdk=25
